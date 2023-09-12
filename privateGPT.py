@@ -9,6 +9,9 @@ import chromadb
 import os
 import argparse
 import time
+# new imports for quantized llama2
+from langchain.callbacks.manager import CallbackManager
+
 
 if not load_dotenv():
     print("Could not load .env file or it is empty. Please check if it exists and is readable.")
@@ -33,11 +36,20 @@ def main():
     db = Chroma(persist_directory=persist_directory, embedding_function=embeddings, client_settings=CHROMA_SETTINGS, client=chroma_client)
     retriever = db.as_retriever(search_kwargs={"k": target_source_chunks})
     # activate/deactivate the streaming StdOut callback for LLMs
-    callbacks = [] if args.mute_stream else [StreamingStdOutCallbackHandler()]
+    # callbacks = [] if args.mute_stream else [StreamingStdOutCallbackHandler()]
+    # new callback_manager replacing the above commented line
+    
     # Prepare the LLM
     match model_type:
         case "LlamaCpp":
-            llm = LlamaCpp(model_path=model_path, max_tokens=model_n_ctx, n_batch=model_n_batch, callbacks=callbacks, verbose=False)
+            # llm = LlamaCpp(model_path=model_path, max_tokens=model_n_ctx, n_batch=model_n_batch, callbacks=callbacks, verbose=False)
+            # adding a new line of calling the quantized llama2 model
+            llm = LlamaCpp(
+                model_path=model_path,
+                input={"temperature": 0.75, "max_length": 2000, "top_p": 1},
+                callback_manager=callback_manager,
+                verbose=True,
+            )
         case "GPT4All":
             llm = GPT4All(model=model_path, max_tokens=model_n_ctx, backend='gptj', n_batch=model_n_batch, callbacks=callbacks, verbose=False)
         case _default:
